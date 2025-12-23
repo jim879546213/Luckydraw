@@ -69,7 +69,7 @@
     <div id="result-area"></div>
 </div>
 
-<div id="status-msg">Firebase 系統運作中</div>
+<div id="status-msg">Firebase 系統運作中 (數量權重平衡已開啟)</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -113,7 +113,7 @@
         }
     });
 
-    // 抽獎邏輯
+    // 抽獎邏輯 (基於剩餘數量的加權演算法)
     window.drawPrize = async () => {
         const btn = document.getElementById('draw-btn');
         const resultArea = document.getElementById('result-area');
@@ -125,11 +125,30 @@
         resultArea.classList.remove('show-result');
         iconBox.classList.add('shaking');
 
+        // 過濾出剩餘數量大於 0 的獎品
         const pool = currentPrizes.filter(p => p.count > 0);
         if (pool.length === 0) return;
 
-        const picked = pool[Math.floor(Math.random() * pool.length)];
+        // 計算總權重 (剩餘總數)
+        const totalWeight = pool.reduce((sum, p) => sum + p.count, 0);
+        
+        // 產生 0 到 totalWeight 之間的隨機數
+        let randomThreshold = Math.random() * totalWeight;
+        let picked = null;
 
+        // 加權篩選邏輯：數量越多佔據的隨機區間越大
+        for (const prize of pool) {
+            randomThreshold -= prize.count;
+            if (randomThreshold <= 0) {
+                picked = prize;
+                break;
+            }
+        }
+
+        // 防錯機制 (正常情況下 picked 不會為 null)
+        if (!picked) picked = pool[0];
+
+        // 準備更新數據
         const newPrizes = currentPrizes.map(p => {
             if (p.id === picked.id) return { ...p, count: p.count - 1 };
             return p;
